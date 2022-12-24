@@ -6,7 +6,9 @@ load_dotenv(find_dotenv())
 TOKEN = os.getenv('TOKEN')
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
-PHONE = os.getenv('PHONE')
+USER_ID = os.getenv('USER_ID')
+BOT_ID = int(os.getenv('BOT_ID'))
+ACCESS_ID_LIST = [int(os.getenv('ADMIN_1')), int(os.getenv('ADMIN_2'))]
 
 WEBHOOK_PATH = f"/main/{TOKEN}"
 APP_URL = os.getenv('APP_URL')

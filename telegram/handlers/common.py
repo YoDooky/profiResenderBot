@@ -8,8 +8,7 @@ async def start_command(message: types.Message, state: FSMContext):
         return
     await state.finish()
     keyboard = markups.get_start_menu()
-    await message.answer("👋Добро пожаловать в бот для сбора данных с телеграмм груп!\n"
-                         "🧐Через меня вы сможете получить информацию о пользователях",
+    await message.answer("👋Добро пожаловать в бот для сбора сообщений!\n",
                          reply_markup=keyboard)
 
 

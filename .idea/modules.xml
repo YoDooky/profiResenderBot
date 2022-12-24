@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/profiEstateBot.iml" filepath="$PROJECT_DIR$/.idea/profiEstateBot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/profiResenderBot.iml" filepath="$PROJECT_DIR$/.idea/profiResenderBot.iml" />
     </modules>
   </component>
 </project>

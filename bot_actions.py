@@ -1,32 +1,21 @@
-from telegram.telethone import collect_users_data
-from telegram.telethone import collect_bot_groups
+import asyncio
+from typing import List
 from save_data_to_excel import ExcelData
-from config.bot_config import API_ID, API_HASH, PHONE
+from telegram.telethone import collect_messages_data
+from config.bot_config import API_ID, API_HASH
 
 
-async def collect_user_data_from_telegram(group_name: str):
+async def collect_messages_from_telegram():
     """Collect data about users from telegram group"""
     api_id = API_ID
     api_hash = API_HASH
-    phone = PHONE
-    await collect_users_data.bot_init(api_id=api_id, api_hash=api_hash, phone=phone, group_name=group_name)
+    await collect_messages_data.bot_init(api_id=api_id, api_hash=api_hash)
 
 
-async def collect_bot_groups_from_telegram():
-    """Collect data about bot groups from telegram"""
-    api_id = API_ID
-    api_hash = API_HASH
-    phone = PHONE
-    await collect_bot_groups.bot_init(api_id=api_id, api_hash=api_hash, phone=phone)
+def write_data_to_excel(data_filter: str = None):
+    """Writes messages from DB to Excel"""
+    excel_data = ExcelData()
+    return excel_data.write_data_to_excel(data_filter)
 
 
-def write_data_to_excel(group_name: str):
-    """Write data collected from telegram"""
-    excel_data = ExcelData(group_name)
-    excel_data.write_data_to_excel()
-
-
-async def get_data_from_group(group_name: str):
-    """Collect data from telegram groups, write it to excel"""
-    await collect_user_data_from_telegram(group_name=group_name)
-    write_data_to_excel(group_name=group_name)
+asyncio.run(collect_messages_from_telegram())

@@ -1,17 +1,16 @@
-import json
 from aiogram import Dispatcher, types
-from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram import Bot
+from aiogram.dispatcher import FSMContext
 
+import aux_func
+from config.db_config import EXCEL_TABLE_PATH
 import bot_actions
-
 from telegram import markups
 
 
-class OrderItem(StatesGroup):
-    waiting_for_photo = State()
-    waiting_for_question = State()
+class MessageState(StatesGroup):
+    waiting_for_filter = State()
 
 
 class UserMenu:
@@ -19,56 +18,62 @@ class UserMenu:
         self.bot = bot
 
     @staticmethod
-    def check_auth(decorated_func):
-        """Auth decorator"""
-        def inner(*args, **kwargs):
-            decorated_func(*args, **kwargs)
-        return inner
-
-    @staticmethod
     async def user_choice(call: types.CallbackQuery):
-        keyboard = markups.get_user_menu()
+        await call.answer()
+        keyboard = markups.get_collect_data_menu()
         await call.message.answer(text='Что Вы хотите сделать? 🧐',
                                   reply_markup=keyboard)
 
     @staticmethod
-    async def get_bot_groups(call: types.CallbackQuery):
-        await call.message.edit_text(text='Собираю данные о группах, в которых состоит бот...')
-        await bot_actions.collect_bot_groups_from_telegram()
-        with open('C:/PyProject/profiEstateBot/config/bot_groups.json', 'r', encoding='utf-8') as file:
-            data = json.loads(file.read())
-        keyboard = markups.get_groups_menu(data)
-        await call.message.edit_text(text='Выберите группу из которой хотите получить данные:',
-                                     reply_markup=keyboard)
+    async def user_choice_command(message: types.Message):
+        keyboard = markups.get_collect_data_menu()
+        await message.answer(text='Что Вы хотите сделать? 🧐',
+                             reply_markup=keyboard)
 
     @staticmethod
-    async def get_group_data(call: types.CallbackQuery):
-        selected_group = call.data.split('selected_group_')[1]
-        await call.message.edit_text(f'Собираю данные о пользователях группы: {selected_group}.\n'
-                                     f'Скорость сбора данных 50 пользователей в минуту\n'
-                                     f'Пожалуйста подождите...')
-        await bot_actions.get_data_from_group(group_name=selected_group)
-        doc = open(f'C:/PyProject/profiEstateBot/excel/{selected_group}.xlsx', 'rb')
-        keyboard = markups.get_back_button()
+    async def get_messages(call: types.CallbackQuery):
+        await call.answer()
+        await call.message.answer(f'Собираю данные о сообщениях...')
+        await bot_actions.collect_messages_from_telegram()
+        keyboard = markups.get_collect_data_menu()
+        if not bot_actions.write_data_to_excel():
+            await call.message.answer(f'Еще нет сообщений')
+            return
+        doc = open(EXCEL_TABLE_PATH, 'rb')
         await call.message.answer_document(doc, reply_markup=keyboard)
 
     @staticmethod
-    async def send_faq(call: types.CallbackQuery):
-        keyboard = markups.get_back_button()
-        await call.message.edit_text(text='ℹ Справка ℹ \n\n'
-                                          'Чтобы пользоваться ботом, необходимо:\n'
-                                          '1) Добавить пользователя бота в целевые группы\n'
-                                          '2) Нажать кнопку "Список групп", после чего бот выдаст '
-                                          'список групп в которых он состоит\n'
-                                          '3) Выбрать группу из которой необходимо получить '
-                                          'информацию о пользователях\n'
-                                          '4) Бот выдаст файл с данными о пользователях по прошествию времени',
-                                     reply_markup=keyboard)
+    async def get_filter_for_messages(call: types.CallbackQuery, state: FSMContext):
+        await call.answer()
+        await call.message.answer(f'Введите дату в формате "yyyy-mm-dd"\n'
+                                  f'например: 2022-12-30')
+        await state.set_state(MessageState.waiting_for_filter.state)
+
+    @staticmethod
+    async def get_filtered_messages(message: types.Message, state: FSMContext):
+        data_filter = message.text
+        data_filtered = aux_func.valid_date(data_filter)
+        if not data_filtered:
+            await message.answer(f'Формат даты не верный. '
+                                 f'Убедитесь что формат соответствует "yyyy-mm-dd"\n'
+                                 f'например: 2022-12-30')
+            return
+
+        await message.answer(f'Собираю данные о сообщениях за период: {data_filter}...')
+        await bot_actions.collect_messages_from_telegram()
+        keyboard = markups.get_collect_data_menu()
+        if not bot_actions.write_data_to_excel(data_filtered):
+            await message.answer(f'За выбранную дату нет сообщений')
+            return
+        doc = open(EXCEL_TABLE_PATH, 'rb')
+        await message.answer_document(doc, reply_markup=keyboard)
+        await state.finish()
 
     def register_handlers(self, dp: Dispatcher):
         """Register message handlers"""
         dp.register_callback_query_handler(self.user_choice, text='start_app')
-        dp.register_callback_query_handler(self.user_choice, text='back')
-        dp.register_callback_query_handler(self.get_bot_groups, text='get_group_list')
-        dp.register_callback_query_handler(self.send_faq, text='faq')
-        dp.register_callback_query_handler(self.get_group_data, Text(contains='selected_group'))
+        dp.register_message_handler(self.user_choice_command, commands="messages")
+        dp.register_callback_query_handler(self.get_messages, text='get_messages')
+        dp.register_callback_query_handler(self.get_filter_for_messages, text='get_messages_filtered')
+        dp.register_message_handler(self.get_filtered_messages, content_types='text',
+                                    state=MessageState.waiting_for_filter)
